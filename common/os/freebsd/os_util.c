@@ -26,7 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdbool.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -301,11 +300,11 @@ os_node_enum(int *node_arr, int arr_size, int *num)
 	if (sysctlbyname("vm.ndomains", &ndomains, &len, NULL, 0) < 0) {
 		debug_print(NULL, 2, "sysctlbyname(vm.ndomains) failed (errno "
 		    "= %d)\n");
-		return false;
+		return B_FALSE;
 	}
 
 	if (arr_size < ndomains)
-		return false;
+		return B_FALSE;
 
 	/* FBSD_XXX: assumes that domain IDs are not sparse, and are allocated
 	 * in monotonically increasing order starting with 0 */
@@ -313,7 +312,7 @@ os_node_enum(int *node_arr, int arr_size, int *num)
 	for (int i = 0; i < ndomains; i++)
 		node_arr[i] = i;
 
-	return true;
+	return B_TRUE;
 }
 
 boolean_t
@@ -328,18 +327,18 @@ os_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
 	if (ret < 0) {
 		debug_print(NULL, 2, "cpuset_getaffinity() failed (errno = "
 		    "%d)\n");
-		return false;
+		return B_FALSE;
 	}
 
 	ncpu = CPU_COUNT(&mask);
 	if (arr_size < ncpu)
-		return false;
+		return B_FALSE;
 
 	*num = ncpu;
 	for (int i = 0; i < ncpu; i++) {
 		if ((cpu = CPU_FFS(&mask)) == 0) {
 			stderr_print("invalid cpu count\n");
-			return false;
+			return B_FALSE;
 		}
 
 		cpu--;
@@ -347,7 +346,7 @@ os_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
 		cpu_arr[i] = cpu;
 	}
 
-	return true;
+	return B_TRUE;
 }
 
 int
@@ -370,7 +369,7 @@ os_online_ncpus(void)
 boolean_t
 os_sysfs_meminfo(int nid, node_meminfo_t *info)
 {
-	return (false);
+	return B_FALSE;
 }
 
 int
@@ -393,7 +392,7 @@ os_sysfs_uncore_imc_init(imc_info_t *imc, int num)
 
 boolean_t os_cmt_init(void)
 {
-	return (false);
+	return B_FALSE;
 }
 
 void os_cmt_fini(void)
