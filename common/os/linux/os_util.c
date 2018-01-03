@@ -451,13 +451,13 @@ file_int_extract(char *path, int *arr, int arr_size, int *num)
 }
 
 boolean_t
-os_sysfs_node_enum(int *node_arr, int arr_size, int *num)
+os_node_enum(int *node_arr, int arr_size, int *num)
 {
 	return (file_int_extract(NODE_NONLINE_PATH, node_arr, arr_size, num));
 }
 
 boolean_t
-os_sysfs_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
+os_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
 {
 	char path[PATH_MAX];
 	
@@ -466,7 +466,7 @@ os_sysfs_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
 }
 
 int
-os_sysfs_online_ncpus(void)
+os_online_ncpus(void)
 {
 	int cpu_arr[NCPUS_MAX], num;
 	char path[PATH_MAX];

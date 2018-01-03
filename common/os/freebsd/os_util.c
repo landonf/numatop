@@ -29,9 +29,14 @@
 #include <stdbool.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include "../../include/types.h"
 #include "../../include/util.h"
 #include "../../include/os/os_util.h"
@@ -49,14 +54,14 @@ os_authorized(void)
 int
 os_numatop_lock(boolean_t *locked)
 {
-	/* Not supported on Linux */
+	/* Not supported on FreeBSD */
 	return (0);
 }
 
 void
 os_numatop_unlock(void)
 {
-	/* Not supported on Linux */
+	/* Not supported on FreeBSD */
 }
 
 int
@@ -287,37 +292,79 @@ os_calibrate(double *nsofclk, uint64_t *clkofsec)
 }
 
 boolean_t
-os_sysfs_node_enum(int *node_arr, int arr_size, int *num)
+os_node_enum(int *node_arr, int arr_size, int *num)
 {
-	return (false);
+	size_t len;
+	int ndomains;
+
+	len = sizeof(ndomains);
+	if (sysctlbyname("vm.ndomains", &ndomains, &len, NULL, 0) < 0) {
+		debug_print(NULL, 2, "sysctlbyname(vm.ndomains) failed (errno "
+		    "= %d)\n");
+		return false;
+	}
+
+	if (arr_size < ndomains)
+		return false;
+
+	/* FBSD_XXX: assumes that domain IDs are not sparse, and are allocated
+	 * in monotonically increasing order starting with 0 */
+	*num = ndomains;
+	for (int i = 0; i < ndomains; i++)
+		node_arr[i] = i;
+
+	return true;
 }
 
 boolean_t
-os_sysfs_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
+os_cpu_enum(int nid, int *cpu_arr, int arr_size, int *num)
 {
-	return (false);
+	cpuset_t mask;
+	int cpu, ncpu;
+	int ret;
+
+	ret = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_DOMAIN, nid,
+	    sizeof(mask), &mask);
+	if (ret < 0) {
+		debug_print(NULL, 2, "cpuset_getaffinity() failed (errno = "
+		    "%d)\n");
+		return false;
+	}
+
+	ncpu = CPU_COUNT(&mask);
+	if (arr_size < ncpu)
+		return false;
+
+	*num = ncpu;
+	for (int i = 0; i < ncpu; i++) {
+		if ((cpu = CPU_FFS(&mask)) == 0) {
+			stderr_print("invalid cpu count\n");
+			return false;
+		}
+
+		cpu--;
+		CPU_CLR(cpu, &mask);
+		cpu_arr[i] = cpu;
+	}
+
+	return true;
 }
 
 int
-os_sysfs_online_ncpus(void)
+os_online_ncpus(void)
 {
-#ifdef FBSD_TODO
-	int cpu_arr[NCPUS_MAX], num;
-	char path[PATH_MAX];
+	cpuset_t mask;
+	int ret;
 
-	if (sysconf(_SC_NPROCESSORS_CONF) > NCPUS_MAX) {
-		return (-1);
+	ret = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
+	    sizeof(mask), &mask);
+	if (ret < 0) {
+		debug_print(NULL, 2, "cpuset_getaffinity() failed (errno = "
+		    "%d)\n");
+		return -1;
 	}
 
-	snprintf(path, PATH_MAX, "/sys/devices/system/cpu/online");
-	if (!file_int_extract(path, cpu_arr, NCPUS_MAX, &num)) {
-		return (-1);
-	}
-
-	return (num);
-#else
-	return (0);
-#endif
+	return (CPU_COUNT(&mask));
 }
 
 boolean_t

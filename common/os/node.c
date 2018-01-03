@@ -168,7 +168,7 @@ cpu_refresh(boolean_t init)
 	for (i = 0; i < NNODES_MAX; i++) {
 		node = node_get(i);
 		if (NODE_VALID(node)) {
-			if (!os_sysfs_cpu_enum(node->nid, cpu_arr, NCPUS_NODE_MAX, &num)) {
+			if (!os_cpu_enum(node->nid, cpu_arr, NCPUS_NODE_MAX, &num)) {
 				return (-1);
 			}
 
@@ -190,7 +190,7 @@ cpu_refresh(boolean_t init)
 	}
 
 	/* Refresh the number of online CPUs */
-	g_ncpus = os_sysfs_online_ncpus();
+	g_ncpus = os_online_ncpus();
 	return (0);
 }
 
@@ -226,7 +226,7 @@ node_group_refresh(boolean_t init)
 	node_t *node;
 
 	node_group_lock();
-	if (!os_sysfs_node_enum(node_arr, NNODES_MAX, &num)) {
+	if (!os_node_enum(node_arr, NNODES_MAX, &num)) {
 		goto L_EXIT;
 	}
 
