@@ -945,8 +945,8 @@ monilwp_data_show(dyn_win_t *win, boolean_t *note_out)
 	r = &dyn->msg;
 	disp_intval(intval_buf, 16);
 	(void) snprintf(content, sizeof (content),
-	    "Monitoring the thread %d in \"%s\" (interval: %s)",
-	    lwpid, proc->name, intval_buf);
+	    "Monitoring the thread %jd in \"%s\" (interval: %s)",
+	    (intmax_t)lwpid, proc->name, intval_buf);
 
 	reg_erase(r);
 	reg_line_write(r, 1, ALIGN_LEFT, content);

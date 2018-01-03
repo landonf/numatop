@@ -40,7 +40,11 @@
 #include "../include/util.h"
 #include "../include/ui_perf_map.h"
 #include "../include/os/os_util.h"
-#include "../include/os/pfwrapper.h"
+
+#ifdef HAVE_PERF_EVENT
+#include "../include/linux/pfwrapper.h"
+#endif
+
 #include "../include/os/node.h"
 
 static node_group_t s_node_group;
@@ -389,7 +393,11 @@ node_cpu_traverse(pfn_perf_cpu_op_t func, void *arg, boolean_t err_ret,
 		for (j = 0; j < NCPUS_NODE_MAX; j++) {
 			cpu = &node->cpus[j];
 			if (cpu->hotremove) {
+#ifdef HAVE_PERF_EVENT
 				pf_resource_free(cpu);
+#else
+				// TODO
+#endif
 				cpu->hotremove = B_FALSE;
 				cpu->cpuid = INVALID_CPUID;
 				continue;

@@ -15,11 +15,29 @@ COMMON_OBJS = cmd.o disp.o lwp.o page.o perf.o proc.o reg.o util.o \
 	win.o ui_perf_map.o
 
 OS_OBJS = os_cmd.o os_perf.o os_win.o node.o map.o os_util.o plat.o \
-	pfwrapper.o sym.o os_page.o
+	sym.o os_page.o
 
 TEST_PATH = ./test/mgen
 
-ARCH := $(shell uname -m)
+ARCH := $(shell uname -m | tr A-Z a-z)
+OS := $(shell uname -s | tr A-Z a-z)
+
+OS_PATH = ./common/${OS}
+OS_INCL_PATH = ./common/include/${OS}
+
+ifeq ($(OS),linux)
+CFLAGS += -DHAVE_PERF_EVENT -DHAVE_NUMA_H
+LDLIBS += -lnuma
+OS_OBS += pfwrapper.o
+else
+ifeq ($(OS),freebsd)
+CFLAGS += -Werror
+CC = clang
+LD = clang
+else
+$(error $(OS) unsupported)
+endif
+endif
 
 ifneq (,$(filter $(ARCH),ppc64le ppc64))
 ARCH_PATH = ./powerpc
@@ -41,12 +59,16 @@ TEST_OBJS = $(TEST_PATH)/mgen.o
 TEST_ARCH_OBJS = $(TEST_ARCH_PATH)/util.o
 
 DEP := $(wildcard ./common/include/*.h) $(wildcard ./common/include/os/*.h) \
-	$(wildcard $(ARCH_PATH)/include/*.h) $(wildcard $(TEST_PATH)/include/*.h)
+	$(wildcard $(ARCH_PATH)/include/*.h) $(wildcard $(OS_INCL_PATH)/*.h) \
+       	$(wildcard $(TEST_PATH)/include/*.h)
 
 %.o: ./common/%.c $(DEP)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 %.o: ./common/os/%.c $(DEP)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+%.o: $(OS_PATH)/%.c $(DEP)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(ARCH_PATH)/%.o: $(ARCH_PATH)/%.c $(DEP)
