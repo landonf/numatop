@@ -588,29 +588,6 @@ L_EXIT:
 }
 
 int
-os_sysfs_cqm_llc_scale(const char *path, double *scale)
-{
-	FILE *fp;
-	char buf[LINE_SIZE];
-
-	*scale = 0.0;
-
-	if ((fp = fopen(path, "r")) == NULL) {
-		return (-1);
-	}
-
-	if (fgets(buf, LINE_SIZE, fp) == NULL) {
-		fclose(fp);
-		return (-1);
-	}
-
-	fclose(fp);
-	*scale = strtod(buf, NULL);
-
-	return 0;
-}
-
-int
 os_sysfs_uncore_qpi_init(qpi_info_t *qpi, int num)
 {
 	int i, fd, qpi_num = 0;
