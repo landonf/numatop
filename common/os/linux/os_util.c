@@ -42,9 +42,9 @@
 #include <locale.h>
 #include <math.h>
 #include <sys/wait.h>
-#include "../include/types.h"
-#include "../include/util.h"
-#include "../include/os/os_util.h"
+#include "../../include/types.h"
+#include "../../include/util.h"
+#include "../../include/os/os_util.h"
 
 uint64_t g_clkofsec;
 double g_nsofclk;

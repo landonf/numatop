@@ -35,10 +35,10 @@
 #include <strings.h>
 #include <sys/types.h>
 #include <numa.h>
-#include "../include/util.h"
-#include "../include/proc.h"
-#include "../include/os/os_util.h"
-#include "../include/os/map.h"
+#include "../../include/util.h"
+#include "../../include/proc.h"
+#include "../../include/os/os_util.h"
+#include "../../include/os/map.h"
 
 int
 map_init(void)

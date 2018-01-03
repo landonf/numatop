@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2013, Intel Corporation
  * Copyright (c) 2017, IBM Corporation
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +26,72 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdint.h>
-#include "../common/include/util.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
+#include "../../../common/include/os/os_util.h"
 
-/*
-* Get the TSC cycles.
-*/
-#ifdef __x86_64__
-uint64_t
-rdtsc(void)
+#define KERNEL_ADDR_START	0xc000000000000000
+
+int
+arch__cpuinfo_freq(double *freq, char *unit)
 {
-	uint64_t var;
-	uint32_t hi, lo;
+	FILE *f;
+	char *line = NULL, *c;
+	size_t len = 0;
+	int ret = -1;
 
-	__asm volatile
-	    ("rdtsc" : "=a" (lo), "=d" (hi));
+	if ((f = fopen(CPUINFO_PATH, "r")) == NULL) {
+		return -1;
+	}
 
-	/* LINTED E_VAR_USED_BEFORE_SET */
-	var = ((uint64_t)hi << 32) | lo;
-	return (var);
+	while (getline(&line, &len, f) > 0) {
+		if (strncmp(line, "clock", sizeof ("clock") -1)) {
+			continue;
+		}
+
+		if (sscanf(line + strcspn(line, ":") + 1, "%lf%10s",
+			freq, unit) == 2) {
+			if (strcasecmp(unit, "GHz") == 0) {
+				*freq *= GHZ;
+			} else if (strcasecmp(unit, "MHz") == 0) {
+				*freq *= MHZ;
+			}
+			break;
+		}
+	}
+
+	/*
+	 * Hyperwiser does not expose cpufreq on PowerVMs(pSeries)
+	 * servers. Thus 'clock' field from /proc/cpuinfo shows
+	 * absolute max freq. While in case of PowerNV servers,
+	 * 'clock' field shows current freq for each individual
+	 * processor.
+	 *
+	 * Use 'clock' field to get freq on pSeries and fallback to
+	 * sysfs cpufreq approach for PowerNV.
+	 */
+	while (getline(&line, &len, f) > 0) {
+		if (strncmp(line, "platform", sizeof("sizeof") -1)) {
+			continue;
+		}
+
+		c = strchr(line, ':');
+		if (c - line + 2 < len &&
+		    !strncmp(c + 2, "pSeries", sizeof ("pSeries") - 1)) {
+			ret = 0;
+			break;
+		}
+	}
+
+	free(line);
+	fclose(f);
+	return ret;
 }
-#else
-uint64_t
-rdtsc(void)
+
+int
+is_userspace(uint64_t ip)
 {
-	uint64_t var;
-
-	__asm volatile
-	    ("rdtsc" : "=A" (var));
-
-	return (var);
+	return (ip < KERNEL_ADDR_START && ip != 0x0);
 }
-#endif

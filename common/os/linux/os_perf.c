@@ -31,18 +31,18 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
-#include "../include/types.h"
-#include "../include/proc.h"
-#include "../include/lwp.h"
-#include "../include/util.h"
-#include "../include/disp.h"
-#include "../include/perf.h"
-#include "../include/ui_perf_map.h"
-#include "../include/os/pfwrapper.h"
-#include "../include/os/node.h"
-#include "../include/os/plat.h"
-#include "../include/os/os_perf.h"
-#include "../include/os/os_util.h"
+#include "../../include/types.h"
+#include "../../include/proc.h"
+#include "../../include/lwp.h"
+#include "../../include/util.h"
+#include "../../include/disp.h"
+#include "../../include/perf.h"
+#include "../../include/ui_perf_map.h"
+#include "../../include/os/linux/pfwrapper.h"
+#include "../../include/os/node.h"
+#include "../../include/os/plat.h"
+#include "../../include/os/os_perf.h"
+#include "../../include/os/os_util.h"
 
 precise_type_t g_precise;
 

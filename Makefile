@@ -7,7 +7,7 @@ LD = gcc
 CFLAGS = -g -Wall -O2
 TEST_CFLAGS = -g -Wall -O0
 LDFLAGS = -g
-LDLIBS = -lncurses -lpthread -lnuma
+LDLIBS = -lncurses -lpthread
 
 NUMATOP_OBJS = numatop.o
 
@@ -17,18 +17,29 @@ COMMON_OBJS = cmd.o disp.o lwp.o page.o perf.o proc.o reg.o util.o \
 OS_OBJS = os_cmd.o os_perf.o os_win.o node.o map.o os_util.o plat.o \
 	sym.o os_page.o
 
+ARCH_OBJS = plat.o util.o ui_perf_map.o
+ARCH_OS_OBJS = util.o
+
 TEST_PATH = ./test/mgen
 
 ARCH := $(shell uname -m | tr A-Z a-z)
+ifneq (,$(filter $(ARCH),powerpc ppc64le ppc64))
+override ARCH = powerpc
+ARCH_OBJS += power8.o power9.o
+else
+ifneq (,$(filter $(ARCH),intel x86_64 amd64 i386 i486 i586 i686))
+override ARCH = intel
+ARCH_OBJS += wsm.o snb.o nhm.o bdw.o skl.o
+else
+$(error $(ARCH) unsupported)
+endif
+endif
+
 OS := $(shell uname -s | tr A-Z a-z)
-
-OS_PATH = ./common/os/${OS}
-OS_INCL_PATH = ./common/include/os/${OS}
-
 ifeq ($(OS),linux)
 CFLAGS += -DHAVE_PERF_EVENT -DHAVE_NUMA_H
 LDLIBS += -lnuma
-OS_OBS += pfwrapper.o
+OS_OBJS += pfwrapper.o
 else
 ifeq ($(OS),freebsd)
 CFLAGS += -Werror
@@ -39,20 +50,14 @@ $(error $(OS) unsupported)
 endif
 endif
 
-ifneq (,$(filter $(ARCH),ppc64le ppc64))
-ARCH_PATH = ./powerpc
-ARCH_OBJS = $(ARCH_PATH)/power8.o $(ARCH_PATH)/power9.o $(ARCH_PATH)/plat.o \
-	$(ARCH_PATH)/util.o $(ARCH_PATH)/ui_perf_map.o
+ARCH_PATH = ./$(ARCH)
+ARCH_OS_PATH = $(ARCH_PATH)/os/$(OS)
+OS_INCL_PATH = ./common/include/os/$(OS)
+OS_PATH = ./common/os/$(OS)
+TEST_ARCH_PATH = $(TEST_PATH)/$(ARCH)
 
-TEST_ARCH_PATH = $(TEST_PATH)/powerpc
-else
-ARCH_PATH = ./intel
-ARCH_OBJS = $(ARCH_PATH)/wsm.o $(ARCH_PATH)/snb.o $(ARCH_PATH)/nhm.o \
-	$(ARCH_PATH)/bdw.o $(ARCH_PATH)/skl.o $(ARCH_PATH)/plat.o \
-	$(ARCH_PATH)/util.o $(ARCH_PATH)/ui_perf_map.o
-
-TEST_ARCH_PATH = $(TEST_PATH)/intel
-endif
+ARCH_OBJS := $(addprefix $(ARCH_PATH)/,$(ARCH_OBJS))
+ARCH_OS_OBJS := $(addprefix $(ARCH_OS_PATH)/,$(ARCH_OS_OBJS)) 
 
 TEST_PROG = $(TEST_PATH)/mgen
 TEST_OBJS = $(TEST_PATH)/mgen.o
@@ -74,6 +79,9 @@ DEP := $(wildcard ./common/include/*.h) $(wildcard ./common/include/os/*.h) \
 $(ARCH_PATH)/%.o: $(ARCH_PATH)/%.c $(DEP)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
+$(ARCH_OS_PATH)/%.o: $(ARCH_OS_PATH)/%.c $(DEP)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
 $(TEST_PATH)/%.o: $(TEST_PATH)/%.c $(DEP)
 	$(CC) $(TEST_CFLAGS) -o $@ -c $<
 
@@ -83,16 +91,16 @@ $(TEST_ARCH_PATH)/%o: $(TEST_ARCH_PATH)/%.c $(DEP)
 all: $(PROG) test
 
 # build numatop tool
-$(PROG): $(NUMATOP_OBJS) $(COMMON_OBJS) $(OS_OBJS) $(ARCH_OBJS)
+$(PROG): $(NUMATOP_OBJS) $(COMMON_OBJS) $(OS_OBJS) $(ARCH_OBJS) $(ARCH_OS_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(NUMATOP_OBJS) $(COMMON_OBJS) $(OS_OBJS) \
-	$(ARCH_OBJS) $(LDLIBS)
+	$(ARCH_OBJS) $(ARCH_OS_OBJS) $(LDLIBS)
 
 # build mgen selftest
 test: $(TEST_PROG)
 
-$(TEST_PROG): $(TEST_OBJS) $(COMMON_OBJS) $(OS_OBJS) $(ARCH_OBJS) $(TEST_ARCH_OBJS)
+$(TEST_PROG): $(TEST_OBJS) $(COMMON_OBJS) $(OS_OBJS) $(ARCH_OBJS) $(ARCH_OS_OBJS) $(TEST_ARCH_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(TEST_OBJS) $(COMMON_OBJS) $(OS_OBJS) \
-	$(ARCH_OBJS) $(TEST_ARCH_OBJS) $(LDLIBS)
+	$(ARCH_OBJS) $(ARCH_OS_OBJS) $(TEST_ARCH_OBJS) $(LDLIBS)
 
 install: $(PROG)
 	install -m 0755 $(PROG) $(PREFIXDIR)$(BINDIR)/
@@ -100,5 +108,5 @@ install: $(PROG)
 	mv -f numatop.8.gz $(MANDIR)/
 
 clean:
-	rm -rf *.o $(ARCH_PATH)/*.o $(TEST_PATH)/*.o $(TEST_ARCH_PATH)/*.o \
-	$(PROG) $(TEST_PROG)
+	rm -rf *.o $(ARCH_PATH)/*.o $(ARCH_OS_PATH)/*.o $(TEST_PATH)/*.o \
+	$(TEST_ARCH_PATH)/*.o $(PROG) $(TEST_PROG)

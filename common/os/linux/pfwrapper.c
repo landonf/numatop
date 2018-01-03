@@ -37,12 +37,12 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
-#include "../include/types.h"
-#include "../include/perf.h"
-#include "../include/util.h"
-#include "../include/os/pfwrapper.h"
-#include "../include/os/node.h"
-#include "../include/os/os_perf.h"
+#include "../../include/types.h"
+#include "../../include/perf.h"
+#include "../../include/util.h"
+#include "../../include/os/linux/pfwrapper.h"
+#include "../../include/os/node.h"
+#include "../../include/os/os_perf.h"
 
 static int s_mapsize, s_mapmask;
 

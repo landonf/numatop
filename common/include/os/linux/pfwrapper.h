@@ -32,7 +32,7 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include "linux/perf_event.h"
-#include "../types.h"
+#include "../../types.h"
 
 #ifdef __cplusplus
 extern "C" {

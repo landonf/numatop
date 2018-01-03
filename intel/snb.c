@@ -35,20 +35,26 @@
 #include <unistd.h>
 #include <string.h>
 #include <strings.h>
+#ifdef HAVE_PERF_EVENT // FBSD_TODO
 #include "../common/include/os/linux/perf_event.h"
+#endif
 #include "../common/include/os/plat.h"
 #include "include/snb.h"
 
 static plat_event_config_t s_snb_ep_config[PERF_COUNT_NUM] = {
+#ifdef HAVE_PERF_EVENT // FBSD_TODO
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, 0x53, 0, "cpu_clk_unhalted.core" },
 	{ PERF_TYPE_RAW, 0x01B7, 0x53, 0x67f800001, "off_core_response_0" },
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES, 0x53, 0, "cpu_clk_unhalted.ref" },
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, 0x53, 0, "instr_retired.any" },
 	{ PERF_TYPE_RAW, 0x01BB, 0x53, 0x600400001, "off_core_response_1" }
+#endif
 };
 
 static plat_event_config_t s_snb_ll = {
+#ifdef HAVE_PERF_EVENT // FBSD_TODO
 	PERF_TYPE_RAW, 0x01CD, 0x53, LL_THRESH, "mem_trans_retired.latency_above_threshold"
+#endif
 };
 
 void

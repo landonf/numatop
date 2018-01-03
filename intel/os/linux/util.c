@@ -27,35 +27,54 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdint.h>
-#include "../common/include/util.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
+#include "../../../common/include/os/os_util.h"
+
+#define KERNEL_ADDR_START	0xffffffff80000000
 
 /*
-* Get the TSC cycles.
-*/
-#ifdef __x86_64__
-uint64_t
-rdtsc(void)
+ * Check the cpu name in proc info. Intel CPUs always have @ x.y
+ * Ghz and that is the TSC frequency.
+ */
+int
+arch__cpuinfo_freq(double *freq, char *unit)
 {
-	uint64_t var;
-	uint32_t hi, lo;
+	FILE *f;
+	char *line = NULL;
+	size_t len = 0;
+	int ret = -1;
 
-	__asm volatile
-	    ("rdtsc" : "=a" (lo), "=d" (hi));
+	if ((f = fopen(CPUINFO_PATH, "r")) == NULL) {
+		return (-1);
+	}
 
-	/* LINTED E_VAR_USED_BEFORE_SET */
-	var = ((uint64_t)hi << 32) | lo;
-	return (var);
+	while (getline(&line, &len, f) > 0) {
+		if (strncmp(line, "model name", sizeof ("model name") - 1) != 0) {
+			continue;
+		}
+
+		if (sscanf(line + strcspn(line, "@") + 1, "%lf%10s",
+			freq, unit) == 2) {
+			if (strcasecmp(unit, "GHz") == 0) {
+				*freq *= GHZ;
+			} else if (strcasecmp(unit, "Mhz") == 0) {
+				*freq *= MHZ;
+			}
+			ret = 0;
+			break;
+		}
+	}
+
+	free(line);
+	fclose(f);
+	return ret;
 }
-#else
-uint64_t
-rdtsc(void)
+
+int
+is_userspace(uint64_t ip)
 {
-	uint64_t var;
-
-	__asm volatile
-	    ("rdtsc" : "=A" (var));
-
-	return (var);
+	return ip < KERNEL_ADDR_START;
 }
-#endif
