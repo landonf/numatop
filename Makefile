@@ -22,8 +22,8 @@ TEST_PATH = ./test/mgen
 ARCH := $(shell uname -m | tr A-Z a-z)
 OS := $(shell uname -s | tr A-Z a-z)
 
-OS_PATH = ./common/${OS}
-OS_INCL_PATH = ./common/include/${OS}
+OS_PATH = ./common/os/${OS}
+OS_INCL_PATH = ./common/include/os/${OS}
 
 ifeq ($(OS),linux)
 CFLAGS += -DHAVE_PERF_EVENT -DHAVE_NUMA_H
