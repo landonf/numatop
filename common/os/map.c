@@ -34,7 +34,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/types.h>
-#include <numa.h>
+#include "numa.h"
 #include "../include/util.h"
 #include "../include/proc.h"
 #include "../include/os/os_util.h"

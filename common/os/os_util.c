@@ -46,6 +46,11 @@
 #include "../include/util.h"
 #include "../include/os/os_util.h"
 
+#include <sys/_cpuset.h>
+#include <sys/cpuset.h>
+
+typedef cpuset_t cpu_set_t;
+
 uint64_t g_clkofsec;
 double g_nsofclk;
 unsigned int g_pqos_moni_id;
