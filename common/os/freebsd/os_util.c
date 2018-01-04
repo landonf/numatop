@@ -412,13 +412,15 @@ os_meminfo(int nid, node_meminfo_t *info)
 	// We need to expand vmmeter, vm.vmtotal, et al to track track and
 	// expose per-domain statistics.
 	line = buf;
-	while (*line != '\0') {
-		int nr, nitem;
+	while (1) {
+		int nr;
 
 		while (isspace_l(*line, NULL))
 			line++;
 
 		if (*line == '\0' || strstr(line, "SEGMENT") == line) {
+			/* Hit EOF or the next segment record; record any stats
+			 * from the previously parsed segment */
 			if (seg != -1) {
 				if (domain == -1 || start == UINTMAX_MAX ||
 				    end == 0)
@@ -443,6 +445,7 @@ os_meminfo(int nid, node_meminfo_t *info)
 			if (*line == '\0')
 				break;
 
+			/* Start parsing next segment */
 			if (sscanf(line, "SEGMENT %d:%n", &seg, &nr) != 1)
 				goto L_EXIT;
 		} else if (strstr(line, "start:") == line) {
@@ -456,9 +459,9 @@ os_meminfo(int nid, node_meminfo_t *info)
 				goto L_EXIT;
 		} else {
 			/* Skip unrecognized line */
-			while (*line != '\0' && *line != '\n')
-				line++;
-			continue;
+			nr = 0;
+			while (line[nr] != '\0' && line[nr] != '\n')
+				nr++;
 		}
 
 		line += nr;
