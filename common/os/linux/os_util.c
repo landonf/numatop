@@ -503,7 +503,7 @@ memsize_parse(char *str, uint64_t *size)
 }
 
 boolean_t
-os_sysfs_meminfo(int nid, node_meminfo_t *info)
+os_meminfo(int nid, node_meminfo_t *info)
 {
 	FILE *fp;
 	char path[PATH_MAX];

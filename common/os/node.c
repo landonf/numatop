@@ -203,7 +203,7 @@ meminfo_refresh(void)
 	for (i = 0; i < NNODES_MAX; i++) {
 		node = node_get(i);
 		if (NODE_VALID(node)) {
-			if (!os_sysfs_meminfo(node->nid, &node->meminfo)) {
+			if (!os_meminfo(node->nid, &node->meminfo)) {
 				debug_print(NULL, 2, "meminfo_refresh:sysfs_meminfo failed\n");
 				return (-1);
 			}

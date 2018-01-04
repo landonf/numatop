@@ -26,6 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -367,9 +369,111 @@ os_online_ncpus(void)
 }
 
 boolean_t
-os_sysfs_meminfo(int nid, node_meminfo_t *info)
+os_meminfo(int nid, node_meminfo_t *info)
 {
-	return B_FALSE;
+	char *buf;
+	const char *line;
+	uintmax_t start, end;
+	size_t len;
+	int domain, seg;
+	boolean_t ret = B_FALSE;
+
+	buf = NULL;
+	line = NULL;
+	len = 0;
+	seg = -1;
+	domain = -1;
+	start = UINTMAX_MAX;
+	end = 0;
+
+	memset(info, 0, sizeof(*info));
+
+	while (1) {
+		if (sysctlbyname("vm.phys_segs", buf, &len, NULL, 0) == 0) {
+			if (buf != NULL)
+				break;
+			else
+				errno = ENOMEM;
+		}
+
+		if (errno != ENOMEM)
+			goto L_EXIT;
+
+		if (buf != NULL)
+			free(buf);
+
+		if ((buf = malloc(len)) == NULL)
+			goto L_EXIT;
+	}
+
+	// FBSD_XXX: parsing node memory information is fiddily, and the kernel
+	// doesn't provide any of the stats we need here.
+	//
+	// We need to expand vmmeter, vm.vmtotal, et al to track track and
+	// expose per-domain statistics.
+	line = buf;
+	while (*line != '\0') {
+		int nr, nitem;
+
+		while (isspace_l(*line, NULL))
+			line++;
+
+		if (*line == '\0' || strstr(line, "SEGMENT") == line) {
+			if (seg != -1) {
+				if (domain == -1 || start == UINTMAX_MAX ||
+				    end == 0)
+				{
+					debug_print(NULL, 2, "missing required "
+					    "attributes for seg %d\n", seg);
+					goto L_EXIT;
+				}
+
+				if (domain == nid) {
+					info->mem_total += end - start;
+					// TODO: additional statistics unavailable
+				}
+
+				seg = -1;
+				start = UINTMAX_MAX;
+				end = 0x0;
+				domain = -1;
+			}
+
+			/* Finished parsing? */
+			if (*line == '\0')
+				break;
+
+			if (sscanf(line, "SEGMENT %d:%n", &seg, &nr) != 1)
+				goto L_EXIT;
+		} else if (strstr(line, "start:") == line) {
+			if (sscanf(line, "start: %jx:%n", &start, &nr) != 1)
+				goto L_EXIT;
+		} else if (strstr(line, "end:") == line) {
+			if (sscanf(line, "end: %jx:%n", &end, &nr) != 1)
+				goto L_EXIT;
+		} else if (strstr(line, "domain:") == line) {
+			if (sscanf(line, "domain: %d:%n", &domain, &nr) != 1)
+				goto L_EXIT;
+		} else {
+			/* Skip unrecognized line */
+			while (*line != '\0' && *line != '\n')
+				line++;
+			continue;
+		}
+
+		line += nr;
+	}
+
+	ret = B_TRUE;
+	
+L_EXIT:
+	if (ret != B_TRUE && line != NULL)
+		debug_print(NULL, 2, "parse error at '%.16s...'\n", line);
+
+	if (buf != NULL)
+		free(buf);
+
+	return ret;
 }
 
 int

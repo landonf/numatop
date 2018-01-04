@@ -74,7 +74,7 @@ extern void os_calibrate(double *nsofclk, uint64_t *clkofsec);
 extern boolean_t os_node_enum(int *, int, int *);
 extern boolean_t os_cpu_enum(int, int *, int, int *);
 extern int os_online_ncpus(void);
-extern boolean_t os_sysfs_meminfo(int, node_meminfo_t *);
+extern boolean_t os_meminfo(int, node_meminfo_t *);
 extern int os_sysfs_online_ncpus(void);
 extern int os_sysfs_uncore_qpi_init(qpi_info_t *, int);
 extern int os_sysfs_uncore_upi_init(qpi_info_t *, int);
