@@ -43,6 +43,7 @@ OS_OBJS += pfwrapper.o
 else
 ifeq ($(OS),freebsd)
 CFLAGS += -Werror
+LDLIBS += -lkvm
 CC = clang
 LD = clang
 else

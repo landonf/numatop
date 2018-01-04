@@ -44,6 +44,7 @@ extern "C" {
 #endif
 
 #define DIGIT_LEN_MAX	512
+#define	PROCFS_ID_NUM	4096
 #define CPU0_CPUFREQ_PATH \
 	"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
 #define NODE_INFO_ROOT \
@@ -61,11 +62,13 @@ extern "C" {
 
 struct _perf_pqos;
 
+extern int os_init(void);
+extern void os_fini(void);
 extern boolean_t os_authorized(void);
 extern int os_numatop_lock(boolean_t *);
 extern void os_numatop_unlock(void);
-extern int os_procfs_psinfo_get(pid_t, void *);
-extern int os_procfs_pname_get(pid_t, char *, int);
+extern int os_psinfo_get(pid_t, void *);
+extern int os_pname_get(pid_t, char *, int);
 extern int os_procfs_lwp_enum(pid_t, int **lwps, int *);
 extern boolean_t os_procfs_lwp_valid(pid_t, int);
 extern int processor_bind(int cpu);
@@ -75,6 +78,7 @@ extern boolean_t os_node_enum(int *, int, int *);
 extern boolean_t os_cpu_enum(int, int *, int, int *);
 extern int os_online_ncpus(void);
 extern boolean_t os_meminfo(int, node_meminfo_t *);
+extern int os_proc_enum(pid_t **, int *);
 extern int os_sysfs_online_ncpus(void);
 extern int os_sysfs_uncore_qpi_init(qpi_info_t *, int);
 extern int os_sysfs_uncore_upi_init(qpi_info_t *, int);

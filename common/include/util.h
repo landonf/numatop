@@ -44,7 +44,6 @@ extern "C" {
 
 #define	EXIT_MSG_SIZE	128
 #define	LINE_SIZE		512
-#define	PROCFS_ID_NUM	4096
 
 #ifndef MIN
 #define	MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -79,8 +78,6 @@ extern void debug_fini(void);
 extern void debug_print(FILE *out, int level, const char *fmt, ...);
 extern uint64_t current_ms(struct timeval *);
 extern double ratio(uint64_t value1, uint64_t value2);
-extern int procfs_enum_id(char *, int **, int *);
-extern int procfs_proc_enum(pid_t **, int *);
 extern void exit_msg_put(const char *fmt, ...);
 extern void exit_msg_print(void);
 extern uint64_t cyc2ns(uint64_t);

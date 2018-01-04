@@ -67,8 +67,12 @@ main(int argc, char *argv[])
 	boolean_t locked = B_FALSE;
 	int c;
 
+	if (os_init() != 0) {
+		return (1);
+	}
+
 	if (!os_authorized()) {
-		return (1);		
+		goto L_EXIT0;
 	}
 
 	g_sortkey = SORT_KEY_CPU;
@@ -325,6 +329,7 @@ L_EXIT0:
 		(void) fclose(log);
 	}
 
+	os_fini();
 	return (ret);
 }
 

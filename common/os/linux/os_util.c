@@ -37,6 +37,7 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -49,6 +50,17 @@
 uint64_t g_clkofsec;
 double g_nsofclk;
 unsigned int g_pqos_moni_id;
+
+int
+os_init(void)
+{
+	return (0);
+}
+
+void
+os_fini(void)
+{
+}
 
 boolean_t
 os_authorized(void)
@@ -69,8 +81,91 @@ os_numatop_unlock(void)
 	/* Not supported on Linux */
 }
 
+
+static int
+procfs_walk(char *path, int **id_arr, int *num)
+{
+	static DIR *dirp;
+	struct dirent *dentp;
+	int i = 0, size = *num, id;
+	int *arr1 = *id_arr, *arr2;
+
+	if ((dirp = opendir(path)) == NULL) {
+		return (-1);
+	}
+
+	while ((dentp = readdir(dirp)) != NULL) {
+		if (dentp->d_name[0] == '.') {
+			/* skip "." and ".." */
+			continue;
+		}
+
+		if ((id = atoi(dentp->d_name)) == 0) {
+			/* Not a valid pid or lwpid. */
+			continue;
+		}
+
+		if (i >= size) {
+			size = size << 1;
+			if ((arr2 = realloc(arr1, size * sizeof (int))) == NULL) {
+				free(arr1);
+				*id_arr = NULL;
+				*num = 0;
+				return (-1);
+			}
+
+			arr1 = arr2;
+		}
+
+		arr1[i] = id;
+		i++;
+	}
+
+	*id_arr = arr1;
+	*num = i;
+
+	(void) closedir(dirp);
+	return (0);
+}
+
+static int
+procfs_enum_id(char *path, int **id_arr, int *nids)
+{
+	int *ids, num = PROCFS_ID_NUM;
+
+	if ((ids = zalloc(PROCFS_ID_NUM * sizeof (int))) == NULL) {
+		return (-1);
+	}
+
+	if (procfs_walk(path, &ids, &num) != 0) {
+		if (ids != NULL) {
+			free(ids);
+		}
+
+		return (-1);
+	}
+
+	*id_arr = ids;
+	*nids = num;
+	return (0);
+}
+
+/*
+ * Retrieve the process's pid from '/proc'
+ */
 int
-os_procfs_psinfo_get(pid_t pid, void *info)
+os_proc_enum(pid_t **pids, int *num)
+{
+	/*
+	 * It's possible that the id in return buffer is 0,
+	 * the caller needs to check again.
+	 */
+	return (procfs_enum_id("/proc", (int **)pids, num));
+}
+
+
+int
+os_psinfo_get(pid_t pid, void *info)
 {
 	/* Not supported on Linux */
 	return (0);
@@ -80,7 +175,7 @@ os_procfs_psinfo_get(pid_t pid, void *info)
  * Retrieve the process's executable name from '/proc'
  */
 int
-os_procfs_pname_get(pid_t pid, char *buf, int size)
+os_pname_get(pid_t pid, char *buf, int size)
 {
 	char pname[PATH_MAX];
 	int procfd; /* file descriptor for /proc/nnnnn/comm */

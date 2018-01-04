@@ -751,8 +751,8 @@ proc_group_refresh(pid_t *procs_new, int nproc_new)
 		if (!exist_arr[i]) {
 			if ((proc = proc_alloc()) != NULL) {
 				proc->pid = procs_new[i];
-				(void) os_procfs_pname_get(proc->pid,
-				    proc->name, PROC_NAME_SIZE);
+				(void) os_pname_get(proc->pid, proc->name,
+				    PROC_NAME_SIZE);
 				(void) proc_group_add(proc);
 			}
 		}
@@ -767,7 +767,7 @@ proc_group_refresh(pid_t *procs_new, int nproc_new)
 }
 
 /*
- * Update the valid processes by scanning '/proc'
+ * Update the valid processes
  */
 void
 proc_enum_update(pid_t pid)
@@ -781,7 +781,7 @@ proc_enum_update(pid_t pid)
 			proc_obsolete(pid);
 		}
 	} else {
-		if (procfs_proc_enum(&procs_new, &nproc_new) == 0) {
+		if (os_proc_enum(&procs_new, &nproc_new) == 0) {
 			proc_group_refresh(procs_new, nproc_new);
 			free(procs_new);
 		}

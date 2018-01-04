@@ -26,18 +26,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/sysctl.h>
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <kvm.h>
 #include <limits.h>
 #include <math.h>
-#include <sys/param.h>
-#include <sys/cpuset.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
+#include <paths.h>
+
+#define boolean_t vm_boolean_t
+#include <sys/user.h>
+#undef boolean_t
+
 #include "../../include/types.h"
 #include "../../include/util.h"
 #include "../../include/os/os_util.h"
@@ -45,6 +53,34 @@
 uint64_t g_clkofsec;
 double g_nsofclk;
 unsigned int g_pqos_moni_id;
+
+static kvm_t *kd;
+static pthread_mutex_t kd_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int
+os_init(void)
+{
+	char errbuf[_POSIX2_LINE_MAX];
+
+	kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf);
+	if (kd == NULL) {
+		debug_print(NULL, 2, "kvm_openfiles() failed: %s\n",
+		    errbuf);
+		errno = ENXIO;
+		return -1;
+	}
+
+	return 0;
+}
+
+void
+os_fini(void)
+{
+	if (kd != NULL) {
+		kvm_close(kd);
+		kd = NULL;
+	}
+}
 
 boolean_t
 os_authorized(void)
@@ -65,10 +101,54 @@ os_numatop_unlock(void)
 	/* Not supported on FreeBSD */
 }
 
+/*
+ * Retrieve a malloc()'d array of all process pids
+ */
 int
-os_procfs_psinfo_get(pid_t pid, void *info)
+os_proc_enum(pid_t **pids, int *num)
 {
-	/* Not supported on Linux */
+	struct kinfo_proc *procs = NULL;
+	pid_t *parray = NULL;
+	int ret;
+	int nprocs;
+
+	ret = -1;
+
+	pthread_mutex_lock(&kd_mutex);
+	procs = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nprocs);
+	if (procs == NULL) {
+		debug_print(NULL, 2, "kvm_getprocs() failed: %s\n",
+		    kvm_geterr(kd));
+		goto L_EXIT;
+	}
+
+	parray = calloc(nprocs, sizeof(*parray));
+	if (parray == NULL) {
+		goto L_EXIT;
+	}
+
+	for (int i = 0; i < nprocs; i++) {
+		parray[i] = procs[i].ki_pid;
+	}
+
+	*pids = parray;
+	*num = nprocs;
+	ret = 0;
+
+L_EXIT:
+	pthread_mutex_unlock(&kd_mutex);
+
+	if (ret != 0) {
+		free(parray);
+	}
+
+	return (ret);
+}
+
+int
+os_psinfo_get(pid_t pid, void *info)
+{
+	/* Not supported on FreeBSD */
 	return (0);
 }
 
@@ -76,9 +156,34 @@ os_procfs_psinfo_get(pid_t pid, void *info)
  * Retrieve the process's executable name from '/proc'
  */
 int
-os_procfs_pname_get(pid_t pid, char *buf, int size)
+os_pname_get(pid_t pid, char *buf, int size)
 {
-	return (ENOSYS);
+	struct kinfo_proc *proc = NULL;
+	int ret;
+	int nprocs;
+
+	ret = -1;
+
+	pthread_mutex_unlock(&kd_mutex);
+	proc = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
+	if (proc == NULL) {
+		debug_print(NULL, 2, "kvm_getprocs() failed: %s\n",
+		    kvm_geterr(kd));
+
+		goto L_EXIT;
+	}
+
+	if (nprocs != 1) {
+		debug_print(NULL, 2, "kvm_getprocs() returned %d procs\n",
+		    nprocs);
+		goto L_EXIT;
+	}
+
+	strlcpy(buf, proc->ki_comm, size);
+
+L_EXIT:
+	pthread_mutex_unlock(&kd_mutex);
+	return (ret);
 }
 
 /*
