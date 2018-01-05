@@ -173,7 +173,7 @@ lwp_enum_update(track_proc_t *proc)
 	int *lwps_new, nlwp_new;
 	int i = 0, j = 0, k;
 
-	if (os_procfs_lwp_enum(proc->pid, &lwps_new, &nlwp_new) != 0) {
+	if (os_proc_lwp_enum(proc->pid, &lwps_new, &nlwp_new) != 0) {
 		return;
 	}
 

@@ -200,7 +200,7 @@ os_pname_get(pid_t pid, char *buf, int size)
  * Retrieve the lwpid in process from '/proc'.
  */
 int
-os_procfs_lwp_enum(pid_t pid, int **lwps, int *num)
+os_proc_lwp_enum(pid_t pid, int **lwps, int *num)
 {
 	char path[PATH_MAX];
 
@@ -212,7 +212,7 @@ os_procfs_lwp_enum(pid_t pid, int **lwps, int *num)
  * Check if the specified pid/lwpid can be found in '/proc'.
  */
 boolean_t
-os_procfs_lwp_valid(pid_t pid, int lwpid)
+os_proc_lwp_valid(pid_t pid, int lwpid)
 {
 	/* Not supported on Linux */
 	return (B_TRUE);

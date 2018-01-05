@@ -107,7 +107,7 @@ os_numatop_unlock(void)
 int
 os_proc_enum(pid_t **pids, int *num)
 {
-	struct kinfo_proc *procs = NULL;
+	struct kinfo_proc *procs;
 	pid_t *parray = NULL;
 	int ret;
 	int nprocs;
@@ -117,7 +117,7 @@ os_proc_enum(pid_t **pids, int *num)
 	pthread_mutex_lock(&kd_mutex);
 	procs = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nprocs);
 	if (procs == NULL) {
-		debug_print(NULL, 2, "kvm_getprocs() failed: %s\n",
+		debug_print(NULL, 2, "os_proc_enum failed: %s\n",
 		    kvm_geterr(kd));
 		goto L_EXIT;
 	}
@@ -127,12 +127,19 @@ os_proc_enum(pid_t **pids, int *num)
 		goto L_EXIT;
 	}
 
+	*num = nprocs;
+	*pids = parray;
+
 	for (int i = 0; i < nprocs; i++) {
+		/* Skip zombie processes */
+		if (procs[i].ki_stat == SZOMB) {
+			(*num)--;
+			continue;
+		}
+
 		parray[i] = procs[i].ki_pid;
 	}
 
-	*pids = parray;
-	*num = nprocs;
 	ret = 0;
 
 L_EXIT:
@@ -153,12 +160,12 @@ os_psinfo_get(pid_t pid, void *info)
 }
 
 /*
- * Retrieve the process's executable name from '/proc'
+ * Retrieve the process's executable name.
  */
 int
 os_pname_get(pid_t pid, char *buf, int size)
 {
-	struct kinfo_proc *proc = NULL;
+	struct kinfo_proc *proc;
 	int ret;
 	int nprocs;
 
@@ -167,14 +174,14 @@ os_pname_get(pid_t pid, char *buf, int size)
 	pthread_mutex_unlock(&kd_mutex);
 	proc = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
 	if (proc == NULL) {
-		debug_print(NULL, 2, "kvm_getprocs() failed: %s\n",
-		    kvm_geterr(kd));
-
+		debug_print(NULL, 2, "os_pname_get failed: %s (pid = %jd)\n",
+		    kvm_geterr(kd), (intmax_t)pid);
 		goto L_EXIT;
 	}
 
 	if (nprocs != 1) {
-		debug_print(NULL, 2, "kvm_getprocs() returned %d procs\n",
+		debug_print(NULL, 2, "os_pname_get failed: kvm_getprocs() "
+		    "returned %d procs\n",
 		    nprocs);
 		goto L_EXIT;
 	}
@@ -187,22 +194,86 @@ L_EXIT:
 }
 
 /*
- * Retrieve the lwpid in process from '/proc'.
+ * Retrieve the lwpid in process.
  */
 int
-os_procfs_lwp_enum(pid_t pid, int **lwps, int *num)
+os_proc_lwp_enum(pid_t pid, int **lwps, int *num)
 {
-	return (ENOSYS);
+	struct kinfo_proc *procs;
+	int *parray = NULL;
+	int ret;
+	int nprocs;
+
+	ret = -1;
+
+	pthread_mutex_unlock(&kd_mutex);
+	procs = kvm_getprocs(kd, KERN_PROC_PID | KERN_PROC_INC_THREAD, pid,
+	    &nprocs);
+	if (procs == NULL) {
+		debug_print(NULL, 2, "os_proc_lwp_enum failed: %s "
+		    "(pid = %jd)\n", kvm_geterr(kd), (intmax_t)pid);
+		goto L_EXIT;
+	}
+
+	parray = calloc(nprocs, sizeof(*parray));
+	if (parray == NULL) {
+		goto L_EXIT;
+	}
+
+	for (int i = 0; i < nprocs; i++) {
+		parray[i] = procs[i].ki_tid;
+	}
+
+	*lwps = parray;
+	*num = nprocs;
+	ret = 0;
+
+L_EXIT:
+	pthread_mutex_unlock(&kd_mutex);
+
+	if (ret != 0) {
+		free(parray);
+	}
+
+	return (ret);
 }
 
 /*
  * Check if the specified pid/lwpid can be found in '/proc'.
  */
 boolean_t
-os_procfs_lwp_valid(pid_t pid, int lwpid)
+os_proc_lwp_valid(pid_t pid, int lwpid)
 {
-	/* Not supported on Linux */
-	return (B_TRUE);
+	struct kinfo_proc *procs;
+	boolean_t ret;
+	int nprocs;
+
+	ret = B_FALSE;
+
+	pthread_mutex_unlock(&kd_mutex);
+	procs = kvm_getprocs(kd, KERN_PROC_PID | KERN_PROC_INC_THREAD, pid,
+	    &nprocs);
+	if (procs == NULL) {
+		debug_print(NULL, 2, "os_proc_lwp_valid failed: %s "
+		    "(pid = %jd, lwpid=%d)\n", kvm_geterr(kd), (intmax_t)pid,
+		    lwpid);
+		goto L_EXIT;
+	}
+
+	for (int i = 0; i < nprocs; i++) {
+		if (procs[i].ki_pid != pid)
+			continue;
+
+		if (procs[i].ki_tid != lwpid)
+			continue;
+
+		ret = B_TRUE;
+		break;
+	}
+
+L_EXIT:
+	pthread_mutex_unlock(&kd_mutex);
+	return (ret);
 }
 
 /*

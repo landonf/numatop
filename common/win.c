@@ -2357,7 +2357,7 @@ win_lat_data_show(track_proc_t *proc, dyn_lat_t *dyn, boolean_t *note_out)
 
 	if (dyn->lwpid != 0) {
 		if (((lwp = proc_lwp_find(proc, dyn->lwpid)) == NULL) ||
-		    (!os_procfs_lwp_valid(proc->pid, dyn->lwpid))) {
+		    (!os_proc_lwp_valid(proc->pid, dyn->lwpid))) {
 			win_invalid_lwp();
 			*note_out = B_TRUE;
 			return (B_FALSE);
