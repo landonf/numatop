@@ -283,44 +283,49 @@ L_EXIT:
 int
 processor_bind(int cpu)
 {
-#ifdef FBSD_TODO
-	cpu_set_t cs;
+	cpuset_t mask;
+	int ret;
 
-	CPU_ZERO (&cs);
-	CPU_SET (cpu, &cs);
+	CPU_SETOF(cpu, &mask);
 
-	if (sched_setaffinity(0, sizeof (cs), &cs) < 0) {
-		debug_print(NULL, 2, "Fail to bind to CPU%d\n", cpu);
-    		return (-1);
-    	}
+	debug_print(NULL, 2, "binding to CPU%d\n", cpu);
+
+	/* Set the thread's anonymous mask */
+	ret = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(mask), &mask);
+	if (ret != 0) {
+		debug_print(NULL, 2, "Fail to bind to CPU%d (errno = %d)\n",
+		    cpu, errno);
+		return (-1);
+	}
 
 	return (0);
-#else
-	return (ENOSYS);
-#endif
 }
 
 int
 processor_unbind(void)
 {
-#ifdef FBSD_TODO
-	cpu_set_t cs;
-	int i;
+	cpuset_t mask;
+	int ret;
 
-	CPU_ZERO (&cs);
-	for (i = 0; i < g_ncpus; i++) {
-		CPU_SET (i, &cs);
+	/* Fetch the thread's currently assigned set */
+	ret = cpuset_getaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_TID, -1,
+	    sizeof(mask), &mask);
+	if (ret != 0) {
+		debug_print(NULL, 2, "Fail to fetch thread's assigned CPU set "
+		    "(errno = %d)\n", errno);
 	}
 
-	if (sched_setaffinity(0, sizeof (cs), &cs) < 0) {
-		debug_print(NULL, 2, "Fail to unbind from CPU\n");
+	/* Set the thread's anonymous mask */
+	ret = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(mask), &mask);
+	if (ret != 0) {
+		debug_print(NULL, 2, "Fail to unbind from CPU (errno = %d)\n",
+		    errno);
 		return (-1);
 	}
 
 	return (0);
-#else
-	return (ENOSYS);
-#endif
 }
 
 static int
