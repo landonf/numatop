@@ -40,10 +40,11 @@
  * Ghz and that is the TSC frequency.
  */
 int
-arch__cpuinfo_freq(double *freq, char *unit)
+arch__cpuinfo_freq(double *freq)
 {
 	FILE *f;
 	char *line = NULL;
+	char unit[11];
 	size_t len = 0;
 	int ret = -1;
 

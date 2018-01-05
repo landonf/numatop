@@ -35,10 +35,11 @@
 #define KERNEL_ADDR_START	0xc000000000000000
 
 int
-arch__cpuinfo_freq(double *freq, char *unit)
+arch__cpuinfo_freq(double *freq)
 {
 	FILE *f;
 	char *line = NULL, *c;
+	char unit[11];
 	size_t len = 0;
 	int ret = -1;
 

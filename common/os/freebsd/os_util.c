@@ -331,10 +331,9 @@ processor_unbind(void)
 static int
 calibrate_cpuinfo(double *nsofclk, uint64_t *clkofsec)
 {
-	char unit[11] = {0};
 	double freq = 0.0;
 
-	if (arch__cpuinfo_freq(&freq, unit)) {
+	if (arch__cpuinfo_freq(&freq)) {
 		return -1;
 	}
 
