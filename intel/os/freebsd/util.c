@@ -27,8 +27,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include "../../../common/include/util.h"
 #include "../../../common/include/os/os_util.h"
 
 #define KERNEL_ADDR_START	0xffffffff80000000
@@ -40,8 +46,53 @@
 int
 arch__cpuinfo_freq(double *freq, char *unit)
 {
-	// TODO
-	return (ENOSYS);
+	char *model;
+	size_t len;
+	int ret;
+
+	model = NULL;
+	len = 0;
+	ret = -1;
+
+	/* Fetch the CPU model string */
+	while (1) {
+		int mib[2] = { CTL_HW, HW_MODEL };
+
+		if (sysctl(mib, nitems(mib), model, &len, NULL, 0) == 0) {
+			if (model != NULL)
+				break;
+			else
+				errno = ENOMEM;
+		}
+
+		if (errno != ENOMEM)
+			goto L_EXIT;
+
+		if (model != NULL)
+			free(model);
+
+		if ((model = malloc(len)) == NULL)
+			goto L_EXIT;
+	}
+
+	if (sscanf(model + strcspn(model, "@") + 1, "%lf%10s", freq,
+	    unit) == 2) {
+		if (strcasecmp(unit, "GHz") == 0) {
+			*freq *= GHZ;
+		} else if (strcasecmp(unit, "Mhz") == 0) {
+			*freq *= MHZ;
+		} else {
+			goto L_EXIT;
+		}
+	}
+
+	debug_print(NULL, 2, "arch__cpuinfo_freq: freq = %.4f, unit = %s\n",
+	    *freq, unit);
+	ret = 0;
+
+L_EXIT:
+	free(model);
+	return (ret);
 }
 
 int
