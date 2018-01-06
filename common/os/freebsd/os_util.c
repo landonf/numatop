@@ -329,6 +329,27 @@ processor_unbind(void)
 }
 
 static int
+calibrate_cpu_machdep(double *nsofclk, uint64_t *clkofsec)
+{
+	size_t len;
+
+	len = sizeof(*clkofsec);
+	if (sysctlbyname("machdep.tsc_freq", clkofsec, &len, NULL, 0) < 0) {
+		debug_print(NULL, 2, "calibrate_cpu_machdep: sysctlbyname() "
+		    "failed (errno = %d)\n", errno);
+
+		return (-1);
+	}
+
+	*nsofclk = (double)NS_SEC / *clkofsec;
+
+	debug_print(NULL, 2, "calibrate_cpu_machdep: nsofclk = %.4f, "
+	    "clkofsec = %lu\n", *nsofclk, *clkofsec);
+
+	return (0);
+}
+
+static int
 calibrate_cpuinfo(double *nsofclk, uint64_t *clkofsec)
 {
 	double freq = 0.0;
@@ -348,46 +369,6 @@ calibrate_cpuinfo(double *nsofclk, uint64_t *clkofsec)
 	    "clkofsec = %lu\n", *nsofclk, *clkofsec);
 
 	return (0);
-}
-
-/*
- * On all recent Intel CPUs, the TSC frequency is always
- * the highest p-state. So get that frequency from sysfs.
- * e.g. 2262000
- */
-static int
-calibrate_cpufreq(double *nsofclk, uint64_t *clkofsec)
-{
-#ifdef FBSD_TODO
-	int fd, i;
-	char buf[32];
-	uint64_t freq;
-
-	if ((fd = open(CPU0_CPUFREQ_PATH, O_RDONLY)) < 0) {
-		return (-1);
-	}
-
-	if ((i = read(fd, buf, sizeof (buf) - 1)) <= 0) {
-		close(fd);
-		return (-1);
-	}
-
-	close(fd);
-	buf[i] = 0;
-	if ((freq = atoll(buf)) == 0) {
-		return (-1);
-	}
-
-	*clkofsec = freq * KHZ;
-	*nsofclk = (double)NS_SEC / *clkofsec;
-
-	debug_print(NULL, 2, "calibrate_cpufreq: nsofclk = %.4f, "
-	    "clkofsec = %lu\n", *nsofclk, *clkofsec);
-
-	return (0);
-#else
-	return (ENOSYS);
-#endif
 }
 
 /*
@@ -461,12 +442,12 @@ calibrate_by_tsc(double *nsofclk, uint64_t *clkofsec)
 void
 os_calibrate(double *nsofclk, uint64_t *clkofsec)
 {
-	if (calibrate_cpuinfo(nsofclk, clkofsec) == 0) {
+	if (calibrate_cpu_machdep(nsofclk, clkofsec) == 0) {
 		return;
 	}
-	
-	if (calibrate_cpufreq(nsofclk, clkofsec) == 0) {
-		return;	
+
+	if (calibrate_cpuinfo(nsofclk, clkofsec) == 0) {
+		return;
 	}
 
 	calibrate_by_tsc(nsofclk, clkofsec);
